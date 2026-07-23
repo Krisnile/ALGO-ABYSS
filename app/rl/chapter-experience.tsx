@@ -67,12 +67,12 @@ export function ChapterExperience({ slug }: { slug: string }) {
         <div><small>{stories[index][0]}</small><p>{stories[index][1]}</p></div>
         <div className="mission"><small>本关任务</small><p>{stories[index][2]}</p></div>
       </section>
-      <section className="lab-panel">
+      <section className={`lab-panel lab-${chapter.slug}`}>
         <div className="lab-heading"><div><span>LIVE EXPERIMENT</span><h2>{chapter.zone}控制台</h2><p>只改变一个关键量，然后观察世界如何自行演化。</p></div><div className="lab-actions"><button onClick={()=>setRunning(!running)}>{running?"Ⅱ 暂停":"▶ 继续"}</button>{[1,2,4].map(value=><button key={value} className={speed===value?"active":""} onClick={()=>setSpeed(value)}>×{value}</button>)}<button onClick={()=>setTick(0)}>↻</button></div></div>
         <div className="lab-grid">
           <article className="parameter-card"><small>关键参数</small><label><b>{spec[0]}</b><em>{parameter}{index===1||index===3||index===12?"%":""}</em></label><input aria-label={spec[0]} type="range" min={spec[1]} max={spec[2]} value={parameter} onChange={event=>setParameter(Number(event.target.value))}/><div className="mode-switch"><button className={mode==="steady"?"active":""} onClick={()=>setMode("steady")}>稳健模式</button><button className={mode==="bold"?"active":""} onClick={()=>setMode("bold")}>激进模式</button></div><p>{normalized<.34?"当前设置偏低：变化更克制，学习信号较弱。":normalized>.7?"当前设置偏高：变化明显，但更容易出现震荡。":"当前处于平衡区间，适合观察基本规律。"}</p></article>
           <article className="telemetry-board"><small>实时遥测</small><div><span><i>学习进度</i><b>{progress.toFixed(0)}%</b></span><em><i style={{width:`${progress}%`}}/></em></div><div><span><i>稳定性</i><b>{stability.toFixed(0)}%</b></span><em><i style={{width:`${stability}%`}}/></em></div><div><span><i>累计回报</i><b>{reward.toFixed(0)}</b></span><em><i style={{width:`${Math.min(100,reward)}%`}}/></em></div></article>
-          <article className="signal-chart"><small>最近 32 步信号</small><div>{Array.from({length:32},(_,i)=><i key={i} style={{height:`${12+((i*17+tick*5+parameter)%76)}%`,opacity:i>25?1:.35+i/45}}/>)}</div><p>参数改变后，柱形的振幅和收敛节奏会立即响应。</p></article>
+          <Instrument chapter={chapter.slug} tick={tick} parameter={parameter} intensity={normalized} />
         </div>
       </section>
       <div className="lesson-explain"><div><small>核心直觉</small><p>{chapter.insight}</p></div><div className="lesson-formula"><small>最小公式</small><b>{chapter.formula}</b></div></div>
@@ -87,6 +87,23 @@ export function ChapterExperience({ slug }: { slug: string }) {
       </footer>
     </section>
   </main>;
+}
+
+function Instrument({ chapter, tick, parameter, intensity }: { chapter:string; tick:number; parameter:number; intensity:number }) {
+  const heights = Array.from({length:24},(_,i)=>12+((i*17+tick*5+parameter)%76));
+  if (chapter==="01") return <article className="signal-chart instrument loop-scope"><small>交互循环监视器</small><div>{["S","A","R","S′"].map((x,i)=><i key={x} className={tick%4===i?"on":""}><b>{x}</b></i>)}</div><p>四个像素节点依次点亮，一圈就是一次完整交互。</p></article>;
+  if (chapter==="02") return <article className="signal-chart instrument decay-scope"><small>折扣星轨</small><div>{[1,2,3,4,5,6,7].map((x,i)=><i key={x} style={{width:`${12-i}%`,height:`${18+intensity*65*Math.pow(intensity+.1,i)}%`,opacity:1-i*(1-intensity)*.13}}><b>γ{i}</b></i>)}</div><p>γ 越小，远方星体越快熄灭。</p></article>;
+  if (chapter==="03") return <article className="signal-chart instrument ripple-scope"><small>Bellman 回传波</small><div><b>V</b>{[0,1,2,3,4].map(i=><i key={i} style={{animationDelay:`${i*.25}s`}}/>)}</div><p>未来价值以递推波的形式返回当前状态。</p></article>;
+  if (chapter==="04") return <article className="signal-chart instrument bandit-scope"><small>动作价值竞赛</small><div>{[.28,.52,.76].map((v,i)=><i key={i} style={{height:`${(v+Math.sin((tick+i)*.3)*.08)*100}%`}}><b>{["?","◆","★"][i]}</b></i>)}</div><p>估值柱竞争时，ε 决定是否离开最高的一根。</p></article>;
+  if (chapter==="05") return <article className="signal-chart instrument film-scope"><small>完整轨迹胶片</small><div>{[0,1,2,3,4,5,6].map((_,i)=><i key={i} className={i<=tick%7?"on":""}><b>{i===6?"G":"S"+i}</b></i>)}</div><p>胶片走完后，终点回报才会统一倒放。</p></article>;
+  if (chapter==="06") return <article className="signal-chart instrument pulse-scope"><small>TD 误差示波器</small><div>{heights.map((h,i)=><i key={i} style={{height:`${Math.abs(50-h)*(1+intensity)}%`}}/>)}</div><b className="zero-line">δ = 0</b><p>上下跳动代表价值低估或高估，收敛时趋近零线。</p></article>;
+  if (chapter==="07") return <article className="signal-chart instrument route-scope"><small>风险航线对比</small><div><i className="safe-route"><b style={{left:`${tick%90}%`}}/></i><i className="risk-route"><b style={{left:`${(tick*2)%90}%`}}/></i></div><p>蓝线更长但容错高；红线更短却紧贴悬崖。</p></article>;
+  if (chapter==="08") return <article className="signal-chart instrument mini-grid"><small>Q 值热力扩散</small><div>{Array.from({length:48},(_,i)=><i key={i} style={{opacity:.12+((i*13+tick*4)%88)/100}} className={i===39?"goal":""}/>)}</div><p>最大 Q 值像热量一样从目标向外传播。</p></article>;
+  if (chapter==="09") return <article className="signal-chart instrument terrain-scope"><small>参数拟合地形</small><div>{heights.map((h,i)=><i key={i} style={{height:`${h}%`}}/>)}<b style={{transform:`rotate(${-14+intensity*22}deg)`}}/></div><p>白色拟合线改变时，整片状态同时获得新估值。</p></article>;
+  if (chapter==="10") return <article className="signal-chart instrument replay-scope"><small>经验回放队列</small><div>{Array.from({length:18},(_,i)=><i key={i} className={(i+tick)%4===0?"on":""}>e{i}</i>)}</div><p>高亮样本被随机抽取，打破连续经验的相关性。</p></article>;
+  if (chapter==="11") return <article className="signal-chart instrument wind-scope"><small>策略概率风向</small><div>{["←","↑","→"].map((x,i)=><i key={x} style={{width:`${22+((tick*(i+2)+i*19)%58)}%`}}><b>{x}</b></i>)}</div><p>回报推动概率质量在三个动作之间重新分配。</p></article>;
+  if (chapter==="12") return <article className="signal-chart instrument dual-scope"><small>Actor / Critic 双通道</small><div><i>{heights.slice(0,12).map((h,i)=><b key={i} style={{height:`${h}%`}}/>)}</i><em>{heights.slice(12).map((h,i)=><b key={i} style={{height:`${100-h}%`}}/>)}</em></div><p>上下通道分别显示策略变化与价值误差。</p></article>;
+  return <article className="signal-chart instrument clip-scope"><small>PPO 裁剪曲线</small><div><i/><i/><b style={{left:`${20+(tick*5)%62}%`}}>π</b><em style={{left:`${35-intensity*12}%`,right:`${35-intensity*12}%`}}/></div><p>策略点越过虚线边界后，收益不再继续放大。</p></article>;
 }
 
 function World({ chapter, tick, intensity, mode }: { chapter: string; tick: number; intensity: number; mode: "steady"|"bold" }) {
