@@ -61,7 +61,6 @@ export function ChapterExperience({ slug }: { slug: string }) {
     return () => { window.clearTimeout(mobileCollapse); window.clearInterval(id); };
   }, [running, speed]);
   const normalized = (parameter - spec[1]) / (spec[2] - spec[1]);
-  const progress = Math.min(100, 12 + (tick % 80) + normalized * 12);
   const stability = Math.max(8, Math.min(99, 91 - normalized * 34 + Math.sin(tick * .3) * 7 + (mode === "steady" ? 8 : -5)));
   const reward = Math.max(0, 18 + normalized * 54 + (tick % 9) * 2 + (mode === "bold" ? 8 : 0));
 
@@ -86,12 +85,10 @@ export function ChapterExperience({ slug }: { slug: string }) {
         <div className="mission"><small>本关任务</small><p>{stories[index][2]}</p></div>
       </section>
       <section className={`lab-panel lab-${chapter.slug}`}>
-        <div className="lab-heading"><div><span>LIVE EXPERIMENT</span><h2>{chapter.zone}控制台</h2><p>只改变一个关键量，然后观察世界如何自行演化。</p></div><div className="lab-actions"><button onClick={()=>setRunning(!running)}>{running?"Ⅱ 暂停":"▶ 继续"}</button>{[1,2,4].map(value=><button key={value} className={speed===value?"active":""} onClick={()=>setSpeed(value)}>×{value}</button>)}<button onClick={()=>setTick(0)}>↻</button></div></div>
-        <div className="lab-grid">
-          <article className="parameter-card"><small>关键参数</small><label><b>{spec[0]}</b><em>{parameter}{index===1||index===3||index===12?"%":""}</em></label><input aria-label={spec[0]} type="range" min={spec[1]} max={spec[2]} value={parameter} onChange={event=>setParameter(Number(event.target.value))}/><div className="mode-switch"><button className={mode==="steady"?"active":""} onClick={()=>setMode("steady")}>稳健模式</button><button className={mode==="bold"?"active":""} onClick={()=>setMode("bold")}>激进模式</button></div><p>{normalized<.34?"当前设置偏低：变化更克制，学习信号较弱。":normalized>.7?"当前设置偏高：变化明显，但更容易出现震荡。":"当前处于平衡区间，适合观察基本规律。"}</p></article>
-          <article className="telemetry-board"><small>实时遥测</small><div><span><i>学习进度</i><b>{progress.toFixed(0)}%</b></span><em><i style={{width:`${progress}%`}}/></em></div><div><span><i>稳定性</i><b>{stability.toFixed(0)}%</b></span><em><i style={{width:`${stability}%`}}/></em></div><div><span><i>累计回报</i><b>{reward.toFixed(0)}</b></span><em><i style={{width:`${Math.min(100,reward)}%`}}/></em></div></article>
-          <Instrument chapter={chapter.slug} tick={tick} parameter={parameter} intensity={normalized} />
-        </div>
+        <div className="lab-heading"><div><span>LIVE EXPERIMENT</span><h2>{chapter.zone}控制台</h2><p>完成像素任务，让算法规律在操作中显现。</p></div><div className="lab-actions"><button onClick={()=>setRunning(!running)}>{running?"Ⅱ 暂停":"▶ 继续"}</button>{[1,2,4].map(value=><button key={value} className={speed===value?"active":""} onClick={()=>setSpeed(value)}>×{value}</button>)}<button onClick={()=>setMode(value=>value==="steady"?"bold":"steady")}>{mode==="steady"?"稳":"激"}</button><button onClick={()=>setTick(0)}>↻</button></div></div>
+        <MiniGame chapter={chapter.slug} tick={tick} parameter={parameter} setParameter={setParameter} spec={spec} />
+        <div className="game-telemetry"><span>STEP <b>{tick}</b></span><span>STABILITY <b>{stability.toFixed(0)}%</b></span><span>REWARD <b>{reward.toFixed(0)}</b></span><span>MODE <b>{mode==="steady"?"稳健":"激进"}</b></span></div>
+        <Instrument chapter={chapter.slug} tick={tick} parameter={parameter} intensity={normalized} />
       </section>
       <div className="lesson-explain"><div><small>核心直觉</small><p>{chapter.insight}</p></div><div className="lesson-formula"><small>最小公式</small><b>{chapter.formula}</b></div></div>
       <section className="concept-deck">
@@ -114,6 +111,28 @@ function SceneFX({ chapter, tick }: { chapter:string; tick:number }) {
   if (chapter==="11") return <div className="scene-fx anime-storm">{Array.from({length:9},(_,i)=><i key={i} style={{"--ray":i} as React.CSSProperties}/>) }<b>∇</b></div>;
   if (chapter==="13") return <div className="scene-fx gate-scene"><i/><i/><b>FINAL GATE</b></div>;
   return <div className="scene-fx abyss-dust">{Array.from({length:18},(_,i)=><i key={i} style={{left:`${(i*37)%96}%`,top:`${(i*29)%88}%`,animationDelay:`${-i*.13}s`}}/>)}</div>;
+}
+
+function MiniGame({ chapter, tick, parameter, setParameter, spec }: { chapter:string; tick:number; parameter:number; setParameter:(value:number)=>void; spec:readonly [string,number,number,number] }) {
+  const [score,setScore]=useState(0);
+  const [step,setStep]=useState(0);
+  const [choice,setChoice]=useState(0);
+  const hit=(points=1)=>{setScore(value=>value+points);setStep(value=>value+1)};
+  const header=(title:string,mission:string)=><div className="game-head"><div><small>PIXEL MISSION</small><h3>{title}</h3><p>{mission}</p></div><div><span>SCORE</span><b>{String(score).padStart(3,"0")}</b></div></div>;
+  const slider=<label className="game-slider"><span>{spec[0]}</span><input aria-label={spec[0]} type="range" min={spec[1]} max={spec[2]} value={parameter} onChange={event=>setParameter(Number(event.target.value))}/><b>{parameter}</b></label>;
+  if(chapter==="01") return <div className="mini-game game-loop">{header("修复感知回路","按正确顺序激活：状态 → 动作 → 奖励 → 新状态。")}<div className="game-field">{["状态","动作","奖励","新状态"].map((x,i)=><button key={x} className={step%4===i?"target":""} onClick={()=>i===step%4?hit(10):setScore(v=>Math.max(0,v-3))}>{x}</button>)}<i style={{transform:`rotate(${step*90}deg)`}}/></div></div>;
+  if(chapter==="02") return <div className="mini-game game-stars">{header("捕捉未来星光","先调 γ，再选择一颗星。远处奖励会被折扣。")}<div className="game-field">{[1,2,3,4,5].map((d,i)=><button key={d} style={{transform:`scale(${1-i*(1-parameter/100)*.14})`,opacity:Math.max(.2,1-i*(1-parameter/100)*.18)}} onClick={()=>hit(Math.max(1,Math.round(10*Math.pow(parameter/100,i))))}>★<small>t+{d}</small></button>)}</div>{slider}</div>;
+  if(chapter==="03") return <div className="mini-game game-propagate">{header("点亮价值回声","从最远节点开始，依次把未来价值传回现在。")}<div className="game-field">{[4,3,2,1,0].map((n,i)=><button key={n} className={i<step%6?"lit":""} onClick={()=>i===step%5?hit(8):setScore(v=>Math.max(0,v-2))}>V{n}<i>γ</i></button>)}</div>{slider}</div>;
+  if(chapter==="04") return <div className="mini-game game-doors">{header("选择晶洞岔路","未知门可能藏着高回报；★ 是当前估值最高。")}<div className="game-field">{["?","◆","★"].map((x,i)=><button key={x} className={choice===i?"picked":""} onClick={()=>{setChoice(i);hit(i===2?6:Math.round(parameter/12))}}><b>{x}</b><small>{i===2?"利用":"探索"}</small></button>)}</div>{slider}</div>;
+  if(chapter==="05") return <div className="mini-game game-episode">{header("完成一整段轨迹","逐格推进；到终点后，整条轨迹才统一结算。")}<div className="game-field">{[0,1,2,3,4,5].map((n,i)=><button key={n} className={i<=step%7?"seen":""} onClick={()=>i===step%6?hit(i===5?25:2):setScore(v=>Math.max(0,v-1))}>{i===5?"终点":"S"+n}</button>)}</div><strong>{step%6===5?"回报即将倒流！":"尚未结束，不更新"}</strong></div>;
+  if(chapter==="06") {const pulse=(tick*13)%100;return <div className="mini-game game-td">{header("捕捉时间差脉冲","当 δ 进入中央绿色区域时点击采样。")}<div className="game-field"><i style={{left:`${pulse}%`}}>δ</i><span/></div><button className="game-action" onClick={()=>hit(pulse>42&&pulse<58?15:1)}>捕捉 δ</button>{slider}</div>}
+  if(chapter==="07") return <div className="mini-game game-cliff-choice">{header("护送 Kize 穿过悬崖","安全路线回报较慢；危险路线可能坠落。")}<div className="game-field"><button onClick={()=>hit(6)}>安全航线 <i style={{width:`${25+step%70}%`}}/></button><button onClick={()=>hit((tick+step)%4===0?0:12)}>悬崖捷径 <i style={{width:`${20+(step*2)%75}%`}}/></button><b>☠ 深渊</b></div>{slider}</div>;
+  if(chapter==="08") return <div className="mini-game game-maze">{header("追踪最大 Q 值","用方向键让 Q 探测器靠近右下角目标。")}<div className="game-field"><div className="maze-board">{Array.from({length:36},(_,i)=><i key={i} className={i===35?"goal":i===choice?"agent":""}/>)}</div><div className="dpad"><button onClick={()=>setChoice(v=>Math.max(0,v-6))}>↑</button><button onClick={()=>setChoice(v=>v%6? v-1:v)}>←</button><button onClick={()=>setChoice(v=>v%6<5?v+1:v)}>→</button><button onClick={()=>{setChoice(v=>Math.min(35,v+6));hit(choice>28?15:2)}}>↓</button></div></div></div>;
+  if(chapter==="09") return <div className="mini-game game-terrain">{header("塑造参数地形","调节特征数量，再点击地形让相似状态一起抬升。")}<div className="game-field" onClick={()=>hit(4)}>{Array.from({length:20},(_,i)=><i key={i} style={{height:`${18+((i*parameter+step*7)%72)}%`}}/>)}</div>{slider}</div>;
+  if(chapter==="10") return <div className="mini-game game-memory">{header("打乱经验回放","找出同符号的经验对，避免按发生顺序训练。")}<div className="game-field">{Array.from({length:12},(_,i)=><button key={i} className={choice===i?"open":""} onClick={()=>{setChoice(i);hit((i+tick)%3===0?8:2)}}>{choice===i?["S","A","R"][i%3]:"?"}</button>)}</div><button className="game-action" onClick={()=>{setChoice((tick*7)%12);hit(3)}}>随机抽样</button></div>;
+  if(chapter==="11") return <div className="mini-game game-policy">{header("调节行动风向","给高回报方向增加概率，但三股风必须保持平衡。")}<div className="game-field">{["←","↑","→"].map((x,i)=><button key={x} onClick={()=>{setChoice(i);setParameter(Math.min(spec[2],parameter+4));hit(i===1?9:3)}} style={{height:`${30+((parameter+i*21)%60)}%`}}>{x}</button>)}</div>{slider}</div>;
+  if(chapter==="12") return <div className="mini-game game-council">{header("主持双核议会","先让 Actor 提案，再让 Critic 评价；交替操作才能连击。")}<div className="game-field"><button className={step%2===0?"ready":""} onClick={()=>step%2===0?hit(10):setScore(v=>Math.max(0,v-3))}>ACTOR<small>提出动作</small></button><i>优势 A = {((tick%20-10)/10).toFixed(1)}</i><button className={step%2===1?"ready":""} onClick={()=>step%2===1?hit(10):setScore(v=>Math.max(0,v-3))}>CRITIC<small>评价动作</small></button></div>{slider}</div>;
+  const ratio=.65+(tick%50)/30;return <div className="mini-game game-clip">{header("穿过策略裁剪闸门","移动边界，把策略比率控制在安全区间内。")}<div className="game-field"><span style={{left:`${25-parameter/3}%`,right:`${25-parameter/3}%`}}/><i style={{left:`${15+(tick*7)%70}%`}}>π</i><b>r = {ratio.toFixed(2)}</b></div><div className="clip-controls"><button onClick={()=>setParameter(Math.max(spec[1],parameter-2))}>收紧 −</button><button onClick={()=>hit(ratio>.8&&ratio<1.2?15:1)}>提交更新</button><button onClick={()=>setParameter(Math.min(spec[2],parameter+2))}>放宽 +</button></div></div>;
 }
 
 function Instrument({ chapter, tick, parameter, intensity }: { chapter:string; tick:number; parameter:number; intensity:number }) {
