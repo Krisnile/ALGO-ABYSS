@@ -4,3 +4,40 @@
 @media(max-width:720px){.topbar{height:56px;padding:0 14px}.brand small,.topbar nav{display:none}.live{font-size:10px}.hero{padding:40px 16px 28px}.hero h1{font-size:48px}.hero>p{font-size:15px}.concept-chips span{font-size:12px;flex:1 1 45%}.observe-task{padding:14px}.experiment,.charts-section,.why,.compare{padding:20px 12px 28px}.section-heading{display:block}.section-heading h2{font-size:28px}.section-heading p{font-size:13px}.controls{margin-top:15px;display:grid;grid-template-columns:1fr 1.3fr 1fr}.controls button{height:46px;padding:0 8px}.speed{display:grid;grid-template-columns:repeat(3,1fr)}.sim-grid{display:block}.cavern{height:390px}.mine{width:100px}.mine-0{margin-left:7%}.mine-2{margin-left:-7%}.mine b{font-size:12px}.crystal{transform:scale(.82)}.core{width:55px;height:55px}.epsilon-orbit{width:125px;height:125px}.event-stream{display:none}.telemetry{display:block;margin-top:8px}.strategy-readout p,.noe-quote{display:none}.mini-stats{grid-template-columns:1fr 1fr}.metric-ribbon{grid-template-columns:1fr 1fr}.metric-ribbon>div{border-bottom:1px solid var(--line)}.metric-ribbon>div:last-child{display:none}.chart-grid,.concept-grid{grid-template-columns:1fr}.formula-card{grid-column:auto}.line-plot,.reward-plot{height:155px}.concept-grid article{min-height:240px}.strategy-cards button{grid-template-columns:48px 1fr;padding:14px}.chart-title b{font-size:14px}footer span:first-child,footer span:last-child{display:none}footer{justify-content:center}.arena-caption{display:none}}
 @media(max-width:420px){.hero h1{font-size:42px}.concept-chips span{flex-basis:100%}.cavern{height:350px}.mine{width:90px}.mine-0{margin-left:10%}.mine-2{margin-left:-10%}.mine small,.mine>span{font-size:10px}.agent{width:30px;height:30px}.card-head>div{display:none}.metric-ribbon b{font-size:13px}.concept-grid h3{font-size:17px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
+
+/* Visual-first pass: the simulation, not explanatory copy, owns the first viewport. */
+.hero{min-height:150px;padding:28px max(20px,4vw) 18px;display:flex;flex-direction:column;justify-content:center}
+.hero:after{content:"";left:4vw;right:4vw;top:auto;bottom:0;width:auto;height:1px;background:linear-gradient(90deg,var(--green),transparent)}
+.hero h1{font-size:clamp(44px,5vw,70px);margin:10px 0 0}
+.hero h1 em{color:var(--gold);font-size:.6em;vertical-align:middle;margin:0 10px;text-shadow:3px 3px 0 #463d16}
+.hero-icons{position:absolute;left:43%;top:36px;display:flex;align-items:center;gap:14px}
+.hero-icons>span{width:56px;height:56px;background:#0d1c13;border:1px solid #34523e;display:grid;place-items:center;transform:rotate(45deg)}
+.hero-icons span i{font-style:normal;font-size:24px;color:var(--green);transform:rotate(-45deg)}
+.hero-icons span:last-child i{color:var(--gold)}
+.hero-icons>b{font:italic 34px Georgia,serif;color:#7d927f}
+.observe-task{top:24px;bottom:auto;padding:13px 16px}
+.stalactites{position:absolute;left:0;right:0;top:0;height:82px;display:flex;justify-content:space-around;align-items:flex-start}
+.stalactites i{display:block;width:28px;height:28px;background:#13261a;clip-path:polygon(0 0,100% 0,50% 100%)}
+.stalactites i:nth-child(3n){height:66px}.stalactites i:nth-child(4n){height:44px;width:45px}
+.fireflies{position:absolute;inset:0;pointer-events:none}
+.fireflies i{position:absolute;width:3px;height:3px;background:var(--green);box-shadow:0 0 9px var(--green);left:calc((var(--n) * 47) % 95 * 1%);top:calc(12% + (var(--n) * 31) % 70 * 1%);animation:firefly calc(2.5s + var(--n) * .12s) ease-in-out infinite alternate;opacity:.45}
+@keyframes firefly{to{transform:translate(14px,-18px);opacity:1}}
+.rail{position:absolute;left:4%;right:4%;bottom:50px;height:18px;border-top:3px solid #43503e;border-bottom:3px solid #43503e;display:flex;justify-content:space-around}
+.rail>i{width:5px;height:28px;background:#2b362c;transform:rotate(45deg);margin-top:-7px}
+.cart{position:absolute;left:10%;top:-28px;width:62px;height:32px;background:#273a2c;border-top:4px solid #6d7f6b;clip-path:polygon(0 0,100% 0,88% 100%,12% 100%);animation:cartRide 15s ease-in-out infinite alternate}
+.cart:before,.cart:after{content:"";position:absolute;width:10px;height:10px;border-radius:50%;background:#0b120d;border:2px solid #697367;bottom:-7px}
+.cart:before{left:9px}.cart:after{right:9px}.cart b{display:block;text-align:center;color:var(--gold);font-size:16px}
+@keyframes cartRide{to{left:82%}}
+.reward-burst{position:absolute;left:50%;top:44%;z-index:10;pointer-events:none}
+.reward-burst i{position:absolute;width:7px;height:7px;background:var(--gold);box-shadow:0 0 10px var(--gold);animation:rewardBurst .8s both;--a:calc(var(--i) * 40deg)}
+@keyframes rewardBurst{from{transform:rotate(45deg) translate(0);opacity:1}to{transform:rotate(var(--a)) translate(85px);opacity:0}}
+
+@media(max-width:720px){
+  .hero{min-height:188px;padding:20px 16px 16px}
+  .hero h1{font-size:44px}
+  .hero-icons{display:none}
+  .observe-task{position:static;width:auto;margin-top:14px;padding:11px 13px}
+  .stalactites i:nth-child(odd){display:none}
+  .rail{bottom:38px}
+  .cart{transform:scale(.8)}
+}

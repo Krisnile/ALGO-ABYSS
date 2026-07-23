@@ -73,9 +73,8 @@ export default function Home() {
 
       <section className="hero">
         <div className="kicker">强化学习 · 第一关 / REINFORCEMENT LEARNING</div>
-        <h1>探索，还是<br /><em>相信现在的最好？</em></h1>
-        <p>三个矿洞的真实产出率被隐藏。智能体只能通过一次次选择与奖励，学会在哪里投入下一次行动。这就是 <b>ε-greedy</b> 的全部矛盾。</p>
-        <div className="concept-chips"><span><i>ε</i> 探索概率</span><span><i>Q</i> 价值估计</span><span><i>R</i> 即时奖励</span><span><i>△</i> 累计遗憾</span></div>
+        <h1>探索 <em>VS</em> 利用</h1>
+        <div className="hero-icons"><span><i>?</i></span><b>ε</b><span><i>★</i></span></div>
         <div className="observe-task"><small>你现在应该看什么</small><b><i>{task.n}</i>{task.title}</b><p>{task.body}</p></div>
       </section>
 
@@ -87,11 +86,15 @@ export default function Home() {
             <div className="card-head"><span>CRYSTAL CAVERN / EPISODE {String(episode).padStart(3, "0")}</span><div><i className="legend explore" />探索 <i className="legend exploit" />利用</div></div>
             <div className="cavern">
               <div className="cave-noise" />
+              <div className="stalactites">{Array.from({ length: 14 }, (_, i) => <i key={i} />)}</div>
+              <div className="fireflies">{Array.from({ length: 18 }, (_, i) => <i key={i} style={{ "--n": i, left: `${(i * 47) % 95}%`, top: `${12 + (i * 31) % 70}%` } as React.CSSProperties} />)}</div>
+              <div className="rail"><i /><i /><i /><i /><div className="cart"><b>◆</b></div></div>
               <div className={`route ${wasExplore ? "explore" : "exploit"} arm-${currentArm}`} />
               <div className="agent" style={{ left: `${arms[currentArm].x}%`, top: `${arms[currentArm].y - 10}%` }}><i /><span>{wasExplore ? "EXPLORE" : "EXPLOIT"}</span></div>
               {arms.map((arm, i) => <div className={`mine mine-${i} ${currentArm === i ? "selected" : ""} ${bestEstimate === i && episode > 3 ? "best" : ""}`} key={arm.code} style={{ left: `${arm.x}%`, top: `${arm.y}%`, "--mine": arm.color } as React.CSSProperties}><div className="crystal"><i /><i /><i /></div><b>{arm.name}</b><small>{arm.code}</small><span>Q = {values[i].toFixed(2)}</span>{currentArm === i && <em className={lastReward ? "reward" : "empty"}>{lastReward ? `+${lastReward} 奖励` : "空手而归"}</em>}</div>)}
               <div className="core"><i /><span>POLICY<br />CORE</span></div>
               <div className="epsilon-orbit" style={{ opacity: .2 + epsilon }}><i>ε</i><span>{epsilon.toFixed(2)}</span></div>
+              {lastReward > 0 && <div className="reward-burst" key={`${episode}-${lastReward}`}>{Array.from({ length: 9 }, (_, i) => <i key={i} style={{ "--i": i } as React.CSSProperties} />)}</div>}
               <div className="arena-caption">真实产出率对智能体隐藏 · 它只能看到自己获得的奖励</div>
             </div>
             <div className="event-stream">{events.length === 0 && <p>等待第一次选择…</p>}{events.map((e) => <p key={e.id}><time>#{String(episode - events.indexOf(e)).padStart(3, "0")}</time><i style={{ background: arms[e.arm].color }} /><b>{arms[e.arm].name}</b><span>{e.explore ? "随机探索" : "利用最优"}</span><em className={e.reward ? "positive" : "zero"}>{e.reward ? `R +${e.reward}` : "R 0"}</em></p>)}</div>
