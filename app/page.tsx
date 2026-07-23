@@ -1,192 +1,142 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-type Stage = {
-  key: string;
-  label: string;
-  title: string;
-  chapter: string;
-  copy: string;
-  duration: number;
-  tone: "cyan" | "amber" | "violet" | "red";
-};
+type LabKey = "data" | "neural" | "reward";
+type LabState = "inspect" | "choose" | "running" | "complete";
 
-const stages: Stage[] = [
-  { key: "idle", label: "待机", chapter: "序章", title: "一座只见过两种颜色的炮塔", copy: "启动一次自动实验，看它如何学习、犯错，并修正自己。", duration: 0, tone: "cyan" },
-  { key: "survey", label: "勘探", chapter: "01 / 数据", title: "无人机进入数据晶矿层", copy: "它们不会挖走所有晶体，只采集足以代表洞穴的样本。", duration: 5200, tone: "cyan" },
-  { key: "label", label: "标注", chapter: "02 / 标签", title: "红色归为 0，蓝色归为 1", copy: "标签让机器第一次拥有了“正确答案”，也悄悄限定了它能想象的世界。", duration: 4300, tone: "violet" },
-  { key: "train", label: "训练", chapter: "03 / 收敛", title: "决策边界正在形成", copy: "模型反复调整权重，让错误越来越少。训练集准确率一路上升。", duration: 6500, tone: "cyan" },
-  { key: "deploy", label: "部署", chapter: "04 / 实战", title: "分类核心接管自动炮塔", copy: "红色与蓝色史莱姆被稳定识别。实验看起来已经成功。", duration: 5000, tone: "amber" },
-  { key: "breach", label: "异常", chapter: "05 / 未知", title: "紫色史莱姆穿过了防线", copy: "模型不是看不见它，而是不知道该如何理解一个训练集中从未出现的颜色。", duration: 5600, tone: "red" },
-  { key: "diagnose", label: "诊断", chapter: "06 / 泛化", title: "高分模型，也可能不理解世界", copy: "98% 是训练集里的成绩，不是面对未知环境的承诺。问题来自数据覆盖，而非炮塔火力。", duration: 6000, tone: "violet" },
-  { key: "augment", label: "增强", chapter: "07 / 修正", title: "让训练集拥有颜色之间的过渡", copy: "系统生成扰动样本，重新塑造边界，而不是把紫色史莱姆当成一道新答案死记。", duration: 6100, tone: "cyan" },
-  { key: "verify", label: "验证", chapter: "08 / 未知副本", title: "第二次部署，模型面对真正的未知", copy: "新的颜色、尺寸与光照同时出现。模型开始依赖特征，而不是记住表面。", duration: 6000, tone: "amber" },
-  { key: "complete", label: "完成", chapter: "实验结论", title: "通过，不是因为它记住得更多", copy: "而是因为训练数据终于教会它：世界不会只出现红色和蓝色。", duration: 0, tone: "cyan" },
-];
+const labs = {
+  data: { no: "01", short: "数据", name: "偏差矿场", en: "DATA BIAS FIELD", color: "#35d6c2", concept: "监督学习", desc: "观察训练数据如何决定模型眼中的世界。" },
+  neural: { no: "02", short: "神经", name: "特征熔炉", en: "NEURAL FORGE", color: "#a879ff", concept: "深度学习", desc: "进入网络内部，看特征如何逐层被提炼。" },
+  reward: { no: "03", short: "奖励", name: "策略竞技场", en: "POLICY ARENA", color: "#f8da73", concept: "强化学习", desc: "改变奖励，观察智能体学会完全不同的行为。" },
+} as const;
 
-const stageIndex = (key: string) => stages.findIndex((s) => s.key === key);
+const samplePoints = Array.from({ length: 34 }, (_, i) => ({
+  x: 9 + ((i * 37) % 82), y: 12 + ((i * 53) % 75), type: i < 17 ? "red" : i < 30 ? "blue" : "purple",
+}));
 
 export default function Home() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const timerRef = useRef<number | null>(null);
-  const [index, setIndex] = useState(0);
-  const [running, setRunning] = useState(false);
-  const [stageProgress, setStageProgress] = useState(0);
-  const [muted, setMuted] = useState(false);
-  const stage = stages[index];
+  const [active, setActive] = useState<LabKey>("data");
+  const [states, setStates] = useState<Record<LabKey, LabState>>({ data: "inspect", neural: "inspect", reward: "inspect" });
+  const [selected, setSelected] = useState<string | null>(null);
+  const [choice, setChoice] = useState<Record<LabKey, string>>({ data: "", neural: "", reward: "" });
+  const [progress, setProgress] = useState(0);
+  const [episode, setEpisode] = useState(0);
+  const completed = Object.values(states).filter((v) => v === "complete").length;
+  const lab = labs[active];
+  const state = states[active];
 
-  const metrics = useMemo(() => {
-    if (index < 2) return { samples: Math.round(stageProgress * 12), acc: 50, loss: 1.84, general: 12 };
-    if (index === 2) return { samples: 12, acc: 54, loss: 1.64, general: 15 };
-    if (index === 3) return { samples: 12, acc: Math.round(54 + stageProgress * 44), loss: +(1.64 - stageProgress * 1.55).toFixed(2), general: 18 };
-    if (index <= 5) return { samples: 12, acc: 98, loss: .09, general: index === 5 ? 8 : 18 };
-    if (index === 6) return { samples: 12, acc: 98, loss: .09, general: 8 };
-    if (index === 7) return { samples: Math.round(12 + stageProgress * 36), acc: Math.round(88 + stageProgress * 8), loss: +(.42 - stageProgress * .3).toFixed(2), general: Math.round(24 + stageProgress * 58) };
-    if (index === 8) return { samples: 48, acc: 96, loss: .12, general: Math.round(82 + stageProgress * 14) };
-    return { samples: 48, acc: 96, loss: .12, general: 96 };
-  }, [index, stageProgress]);
-
-  const start = () => {
-    if (timerRef.current) window.clearInterval(timerRef.current);
-    setIndex(1); setStageProgress(0); setRunning(true);
-  };
+  const updateState = (value: LabState) => setStates((s) => ({ ...s, [active]: value }));
 
   useEffect(() => {
-    if (!running || !stage.duration) return;
+    if (state !== "running") return;
+    setProgress(0); setEpisode(0);
+    const duration = active === "reward" ? 5200 : 4300;
     const started = performance.now();
-    timerRef.current = window.setInterval(() => {
-      const progress = Math.min(1, (performance.now() - started) / stage.duration);
-      setStageProgress(progress);
-      if (progress >= 1) {
-        if (timerRef.current) window.clearInterval(timerRef.current);
-        if (index < stages.length - 1) {
-          setIndex((v) => v + 1); setStageProgress(0);
-          if (index + 1 === stages.length - 1) setRunning(false);
-        }
-      }
+    const timer = window.setInterval(() => {
+      const p = Math.min(1, (performance.now() - started) / duration);
+      setProgress(p); setEpisode(Math.floor(p * 100));
+      if (p >= 1) { window.clearInterval(timer); updateState("complete"); }
     }, 50);
-    return () => { if (timerRef.current) window.clearInterval(timerRef.current); };
-  }, [index, running, stage.duration]);
+    return () => window.clearInterval(timer);
+  }, [state, active]);
 
-  useEffect(() => {
-    const canvas = canvasRef.current; if (!canvas) return;
-    const ctx = canvas.getContext("2d"); if (!ctx) return;
-    let frame = 0;
-    const particles = Array.from({ length: 70 }, (_, i) => ({ x: (i * 137) % 1000, y: (i * 83) % 560, s: 1 + i % 3 }));
+  const mission = useMemo(() => {
+    if (state === "inspect") return active === "data"
+      ? { eyebrow: "当前任务 · 观察", title: "点击一个紫色样本", body: "先查看模型为何对陌生颜色如此不确定。", action: "在散点图中找到发光的紫色方块" }
+      : active === "neural"
+        ? { eyebrow: "当前任务 · 探索", title: "打开一个隐藏层", body: "查看这一层从像素中提取了什么特征。", action: "点击网络中的任意隐藏层" }
+        : { eyebrow: "当前任务 · 预测", title: "观察初始策略", body: "智能体还没有目标，只会在地图中随机游走。", action: "点击竞技场，读取当前策略" };
+    if (state === "choose") return active === "data"
+      ? { eyebrow: "当前任务 · 决策", title: "修正数据分布", body: "选择一种方式，让模型学会面对训练集之外的颜色。", action: "选择下方一个数据方案" }
+      : active === "neural"
+        ? { eyebrow: "当前任务 · 决策", title: "选择激活函数", body: "激活函数决定哪些信号能继续传向下一层。", action: "选择 ReLU 或 Sigmoid" }
+        : { eyebrow: "当前任务 · 决策", title: "定义奖励", body: "你奖励什么，智能体就会努力成为什么。", action: "选择一种奖励规则" };
+    if (state === "running") return { eyebrow: "系统正在演算", title: active === "data" ? "边界正在重绘" : active === "neural" ? "信号正在逐层传播" : `训练回合 ${episode} / 100`, body: "现在无需操作，观察画面和指标如何同步变化。", action: "等待实验完成" };
+    return { eyebrow: "实验完成", title: active === "data" ? "未知分布已被覆盖" : active === "neural" ? "特征通路已稳定" : "策略已经收敛", body: active === "reward" && choice.reward === "coin" ? "它学会了贪婪：金币很多，但几乎不顾危险。" : "结果已写入探索档案，可以进入下一个实验舱。", action: completed < 3 ? "从顶部选择下一个实验" : "三个知识舱已全部完成" };
+  }, [state, active, episode, completed, choice.reward]);
 
-    const slime = (x: number, y: number, color: string, scale = 1, angry = false) => {
-      ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale); ctx.shadowColor = color; ctx.shadowBlur = 16;
-      ctx.fillStyle = color; ctx.fillRect(-18, -13, 36, 13); ctx.fillRect(-23, -5, 46, 17);
-      ctx.fillStyle = angry ? "#ffeddf" : "#111827"; ctx.fillRect(-11, -4, 5, 5); ctx.fillRect(7, -4, 5, 5); ctx.shadowBlur = 0; ctx.restore();
-    };
-    const drone = (x: number, y: number, beam = false) => {
-      ctx.fillStyle = "#d8e7eb"; ctx.fillRect(x - 12, y - 5, 24, 10); ctx.fillStyle = "#35d6c2"; ctx.fillRect(x - 4, y - 8, 8, 4); ctx.fillRect(x - 19, y - 2, 7, 2); ctx.fillRect(x + 12, y - 2, 7, 2);
-      if (beam) { const g = ctx.createLinearGradient(0, y, 0, y + 110); g.addColorStop(0, "#35d6c277"); g.addColorStop(1, "transparent"); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x - 7, y + 5); ctx.lineTo(x + 7, y + 5); ctx.lineTo(x + 35, y + 110); ctx.lineTo(x - 35, y + 110); ctx.fill(); }
-    };
-    const crystal = (x: number, y: number, color: string, alpha = 1) => {
-      ctx.save(); ctx.globalAlpha = alpha; ctx.shadowColor = color; ctx.shadowBlur = 12; ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x, y - 18); ctx.lineTo(x + 11, y); ctx.lineTo(x, y + 10); ctx.lineTo(x - 11, y); ctx.closePath(); ctx.fill(); ctx.restore();
-    };
-    const turret = (x: number, y: number, active: boolean) => {
-      ctx.fillStyle = "#25354a"; ctx.fillRect(x - 26, y - 35, 52, 35); ctx.fillStyle = active ? "#35d6c2" : "#536378"; ctx.fillRect(x - 9, y - 52, 18, 19); ctx.fillRect(x + 6, y - 47, 35, 7); if (active) { ctx.shadowColor = "#35d6c2"; ctx.shadowBlur = 18; ctx.fillRect(x - 4, y - 47, 8, 8); ctx.shadowBlur = 0; }
-    };
-    const text = (value: string, x: number, y: number, color = "#8ea1b4", size = 10) => { ctx.fillStyle = color; ctx.font = `${size}px ui-monospace, monospace`; ctx.fillText(value, x, y); };
-
-    const render = (now: number) => {
-      const t = now / 1000; const w = 1000; const h = 560; const i = index; const p = stageProgress;
-      ctx.clearRect(0, 0, w, h);
-      const bg = ctx.createLinearGradient(0, 0, 0, h); bg.addColorStop(0, i === 5 ? "#2b101d" : i === 6 ? "#1d1533" : "#101b2c"); bg.addColorStop(1, "#050912"); ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
-      particles.forEach((pt, n) => { ctx.globalAlpha = .13 + (n % 4) * .05; ctx.fillStyle = n % 8 ? "#72829a" : "#35d6c2"; ctx.fillRect(pt.x, (pt.y + t * pt.s * 3) % h, pt.s, pt.s); }); ctx.globalAlpha = 1;
-
-      const camera = i === 1 ? p * 40 : i >= 5 ? 35 : 0;
-      ctx.save(); ctx.translate(-camera, 0);
-      ctx.fillStyle = "#101a28"; ctx.fillRect(0, 390, 1100, 170); ctx.fillStyle = "#26354a"; ctx.fillRect(0, 390, 1100, 10);
-      for (let x = 0; x < 1100; x += 32) { ctx.fillStyle = x % 64 ? "#172235" : "#1e2d42"; ctx.fillRect(x, 404, 29, 16); ctx.fillRect(x + 5, 436, 22, 11); }
-
-      if (i <= 2) {
-        const colors = ["#ef5c67", "#4fd9df", "#ef5c67", "#4fd9df", "#ef5c67", "#4fd9df"];
-        colors.forEach((c, n) => crystal(150 + n * 145, 370 - (n % 2) * 54, c, i === 1 ? Math.max(.15, 1 - p * (n / 7)) : .22));
-        if (i === 1) { drone(110 + p * 750, 210 + Math.sin(t * 4) * 8, true); drone(790 - p * 510, 160 + Math.cos(t * 3) * 8, p > .35); }
-        if (i === 2) {
-          for (let n = 0; n < 12; n++) { const targetX = 380 + (n % 6) * 42; const targetY = 210 + Math.floor(n / 6) * 62; const enter = Math.min(1, p * 1.8 - n * .055); if (enter > 0) { crystal(targetX, targetY, n % 2 ? "#4fd9df" : "#ef5c67", enter); text(n % 2 ? "1" : "0", targetX - 3, targetY + 31, "#d8e6ed", 9); } }
-          ctx.strokeStyle = "#4a5c75"; ctx.strokeRect(340, 150, 310, 190); text("DATASET / 12 SAMPLES", 357, 177, "#a7b8c8", 10);
-        }
-      }
-
-      if (i === 3 || i === 7) {
-        const augmented = i === 7; ctx.fillStyle = "#0b1421"; ctx.fillRect(110, 105, 780, 330); ctx.strokeStyle = augmented ? "#a879ff" : "#35d6c2"; ctx.strokeRect(110, 105, 780, 330);
-        for (let x = 130; x < 880; x += 35) { ctx.strokeStyle = "#1c2b40"; ctx.beginPath(); ctx.moveTo(x, 120); ctx.lineTo(x, 420); ctx.stroke(); }
-        for (let y = 140; y < 420; y += 35) { ctx.beginPath(); ctx.moveTo(125, y); ctx.lineTo(875, y); ctx.stroke(); }
-        const count = augmented ? 34 : 12; for (let n = 0; n < count; n++) { const mix = augmented && n > 11; const c = mix ? `hsl(${250 + (n % 9) * 9} 78% 67%)` : n % 2 ? "#4fd9df" : "#ef5c67"; const x = mix ? 260 + (n * 73) % 470 : n % 2 ? 650 + (n * 19) % 120 : 210 + (n * 23) % 120; const y = mix ? 180 + (n * 41) % 170 : n % 2 ? 190 + (n * 31) % 90 : 300 - (n * 17) % 80; ctx.fillStyle = c; ctx.shadowColor = c; ctx.shadowBlur = 7; ctx.fillRect(x, y, 7, 7); }
-        ctx.shadowBlur = 0; ctx.save(); ctx.translate(500, 270); ctx.rotate((-.25 + p * .55) * Math.PI); ctx.fillStyle = augmented ? "#a879ff" : "#f8da73"; ctx.fillRect(-430, -2, 860, 4); ctx.restore();
-        text(augmented ? "AUGMENTED FEATURE SPACE" : "LIVE DECISION BOUNDARY", 132, 135, augmented ? "#c7a9ff" : "#64e8da", 11);
-      }
-
-      if (i >= 4 && i !== 6 && i !== 7) {
-        turret(150, 390, true); const speed = i === 4 ? 130 : 95;
-        const sx = 930 - ((t * speed) % 900); const variant = i >= 8;
-        slime(sx, 390, variant ? ["#a879ff", "#ef5c67", "#f8da73"][Math.floor(t) % 3] : i === 5 ? "#a879ff" : Math.floor(t) % 2 ? "#4fd9df" : "#ef5c67", variant ? .75 + (Math.sin(t * 2) + 1) * .28 : i === 5 ? 1.35 : 1);
-        if (i === 4 || i >= 8) { const beam = Math.sin(t * 7) > .72; if (beam) { ctx.strokeStyle = "#f8da73"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(188, 342); ctx.lineTo(sx, 374); ctx.stroke(); } }
-        if (i === 5) { ctx.fillStyle = "#ff6b4a"; ctx.fillRect(98, 278, 106, 4); text("UNKNOWN", sx - 29, 345, "#ff8790", 10); }
-      }
-
-      if (i === 6) {
-        ctx.fillStyle = "#0b1120"; ctx.fillRect(145, 90, 710, 370); ctx.strokeStyle = "#7356a8"; ctx.strokeRect(145, 90, 710, 370);
-        const nodes = [{ x: 270, y: 180 }, { x: 270, y: 300 }, { x: 500, y: 155 }, { x: 500, y: 250 }, { x: 500, y: 345 }, { x: 730, y: 250 }];
-        nodes.forEach((a, n) => nodes.slice(n + 1).forEach((b) => { if (Math.abs(a.x - b.x) < 300 && a.x !== b.x) { ctx.strokeStyle = `rgba(168,121,255,${.12 + .25 * Math.sin(t * 2 + n)})`; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); } }));
-        nodes.forEach((n, k) => { ctx.fillStyle = k === 5 ? "#ff6b4a" : "#a879ff"; ctx.beginPath(); ctx.arc(n.x, n.y, 10 + Math.sin(t * 3 + k) * 2, 0, Math.PI * 2); ctx.fill(); });
-        text("MODEL DIAGNOSTIC / OOD FAILURE", 170, 121, "#c6a9ff", 11); text("训练准确率  98%", 185, 412, "#dce5eb", 12); text("未知分布置信度  08%", 590, 412, "#ff7b72", 12);
-      }
-      ctx.restore();
-      if (i === 9) { ctx.fillStyle = "rgba(53,214,194,.07)"; ctx.fillRect(0, 0, w, h); for (let n = 0; n < 28; n++) { ctx.fillStyle = n % 2 ? "#35d6c2" : "#f8da73"; ctx.globalAlpha = .3 + n % 3 * .2; ctx.fillRect((n * 97 + t * 40) % w, (n * 53 + t * 20) % h, 3, 9); } ctx.globalAlpha = 1; }
-      text(`${stage.chapter.toUpperCase()} // ${stage.key.toUpperCase()}`, 22, 32, stage.tone === "red" ? "#ff6b4a" : "#6de7da", 10);
-      frame = requestAnimationFrame(render);
-    };
-    frame = requestAnimationFrame(render); return () => cancelAnimationFrame(frame);
-  }, [index, stageProgress, stage.chapter, stage.key, stage.tone]);
-
-  const lossPoints = Array.from({ length: 22 }, (_, n) => {
-    const progress = Math.min(1, index < 3 ? 0 : index === 3 ? stageProgress : 1);
-    return 70 - Math.min(n / 21, progress) * 53 + Math.sin(n * 1.7) * (1 - progress) * 8;
-  });
+  const inspect = (value: string) => { if (state !== "inspect") return; setSelected(value); updateState("choose"); };
+  const decide = (value: string) => { if (state !== "choose") return; setChoice((c) => ({ ...c, [active]: value })); updateState("running"); };
 
   return (
-    <main className={`experience tone-${stage.tone}`}>
-      <header className="nav">
-        <div className="logo"><span>A</span><div><b>ALGO ABYSS</b><small>自动实验剧场</small></div></div>
-        <div className="nav-center"><i className={running ? "live" : ""} /> {running ? "EXPERIMENT RUNNING" : index === 9 ? "EXPERIMENT COMPLETE" : "SYSTEM READY"}</div>
-        <button className="sound" onClick={() => setMuted(!muted)} aria-label="切换声音">{muted ? "SOUND OFF" : "SOUND ON"}</button>
+    <main className={`world lab-${active}`} style={{ "--lab": lab.color } as React.CSSProperties}>
+      <div className="ambient"><i /><i /><i /></div>
+      <header className="top-nav">
+        <div className="brand"><span>A</span><div><b>ALGO ABYSS</b><small>算法探索基地 / 0.3</small></div></div>
+        <div className="completion"><span>探索进度</span><div>{([0, 1, 2] as const).map((n) => <i key={n} className={n < completed ? "done" : ""} />)}</div><b>{completed}/3</b></div>
+        <div className="online"><i /> Ω CORE ONLINE</div>
       </header>
 
-      <section className="hero-copy">
-        <div className="chapter">{stage.chapter}</div>
-        <div className="copy-main"><div className="stage-number">{String(index).padStart(2, "0")}</div><div><h1>{stage.title}</h1><p>{stage.copy}</p></div></div>
-        {!running && (index === 0 || index === 9) && <button className="launch" onClick={start}><span>{index === 9 ? "再看一次" : "启动自动实验"}</span><i>→</i></button>}
-      </section>
+      <nav className="lab-nav" aria-label="实验室导航">
+        {(Object.keys(labs) as LabKey[]).map((key) => {
+          const item = labs[key]; const done = states[key] === "complete";
+          return <button key={key} onClick={() => { setActive(key); setSelected(null); }} className={active === key ? "active" : ""} style={{ "--tab": item.color } as React.CSSProperties}>
+            <span>{item.no}</span><div><small>{item.concept}</small><b>{item.name}</b></div><i className={done ? "done" : ""}>{done ? "✓" : "→"}</i>
+          </button>;
+        })}
+      </nav>
 
-      <section className="theater">
-        <div className="world-panel">
-          <div className="world-head"><div><span>OBSERVATION DECK / LIVE</span><b>{stage.label}</b></div><div className="world-tags"><span>无人值守</span><span>实时演算</span></div></div>
-          <div className="canvas-wrap"><canvas ref={canvasRef} width={1000} height={560} /><div className="scanlines" /><div className="corner tl" /><div className="corner br" />{running && <div className="stage-progress"><i style={{ width: `${stageProgress * 100}%` }} /></div>}</div>
-        </div>
+      <section className="main-grid">
+        <aside className="mission panel">
+          <div className="panel-label"><span>MISSION CONTROL</span><i>{lab.no}</i></div>
+          <div className="mission-symbol"><span>{active === "data" ? "◇" : active === "neural" ? "⌬" : "◎"}</span></div>
+          <small className="mission-eyebrow">{mission.eyebrow}</small>
+          <h1>{mission.title}</h1><p>{mission.body}</p>
+          <div className={`instruction ${state === "running" ? "running" : ""}`}><i>{state === "complete" ? "✓" : state === "running" ? "···" : "!"}</i><span>{mission.action}</span></div>
+          <div className="steps">
+            {(["inspect", "choose", "complete"] as LabState[]).map((s, i) => <div key={s} className={state === s ? "active" : (["choose", "running", "complete"].includes(state) && i === 0) || (state === "complete" && i === 1) ? "done" : ""}><i /><span>{i === 0 ? "观察现象" : i === 1 ? "做出决策" : "读取结果"}</span></div>)}
+          </div>
+          <div className="noe"><div className="noe-face"><i /><i /></div><p><b>NOE / 向导</b>“{state === "inspect" ? "我会一直告诉你下一步，不必猜按钮在哪里。" : state === "choose" ? "没有唯一正确答案，先预测，再看世界如何回应。" : state === "running" ? "现在只看，不用操作。注意颜色和结构的变化。" : "你完成的不是测验，而是一次真正的实验。"}”</p></div>
+        </aside>
 
-        <aside className="telemetry">
-          <div className="telemetry-head"><span>模型遥测</span><i>LIVE</i></div>
-          <div className="metric-feature"><small>泛化指数</small><strong>{metrics.general}<sup>%</sup></strong><div className="gauge"><i style={{ width: `${metrics.general}%` }} /></div><p>{metrics.general < 20 ? "模型仍然依赖训练集表面特征" : metrics.general < 80 ? "未知分布正在进入模型视野" : "跨分布特征保持稳定"}</p></div>
-          <div className="metric-row"><div><small>样本</small><b>{metrics.samples}</b></div><div><small>准确率</small><b>{metrics.acc}%</b></div><div><small>LOSS</small><b>{metrics.loss.toFixed(2)}</b></div></div>
-          <div className="chart"><div className="chart-label"><span>损失地形</span><span>mean loss</span></div><div className="line-chart">{lossPoints.map((y, n) => n < lossPoints.length - 1 && <i key={n} style={{ left: `${n / 21 * 100}%`, top: `${y}%`, width: `${100 / 21 + .5}%`, transform: `rotate(${Math.atan2(lossPoints[n + 1] - y, 100 / 21) * 180 / Math.PI}deg)` }} />)}</div></div>
-          <div className="transmission"><span>NOE / 观测员</span><p>“{index === 0 ? "你只需要启动。剩下的，让世界自己证明。" : index < 4 ? "数据正在教它看见什么，也在教它忽略什么。" : index === 5 ? "它的分数没有说谎，只是问题问错了地方。" : index < 8 ? "我们不修炮塔，我们修正它理解世界的方式。" : "未知并没有消失，但模型学会了如何面对。"}”</p></div>
+        <section className="lab-stage panel">
+          <div className="stage-head"><div><span>{lab.en}</span><b>{lab.name}</b></div><div><span>LIVE SIMULATION</span><i className={state === "running" ? "pulse" : ""} /></div></div>
+
+          {active === "data" && <DataLab state={state} progress={progress} selected={selected} inspect={inspect} choice={choice.data} />}
+          {active === "neural" && <NeuralLab state={state} progress={progress} inspect={inspect} choice={choice.neural} />}
+          {active === "reward" && <RewardLab state={state} progress={progress} inspect={inspect} choice={choice.reward} />}
+
+          {state === "choose" && <div className="choice-dock">
+            <div><small>选择一项进行实验</small><b>{active === "data" ? "如何补足训练集？" : active === "neural" ? "让哪种信号通过？" : "奖励智能体什么行为？"}</b></div>
+            <div className="choice-buttons">
+              {active === "data" && <><button onClick={() => decide("more")}>只补紫色样本<small>快速，但可能继续死记</small></button><button className="recommended" onClick={() => decide("augment")}>生成颜色扰动<small>推荐 · 覆盖连续分布</small></button></>}
+              {active === "neural" && <><button className="recommended" onClick={() => decide("relu")}>ReLU<small>保留强信号，产生稀疏激活</small></button><button onClick={() => decide("sigmoid")}>Sigmoid<small>平滑压缩所有信号</small></button></>}
+              {active === "reward" && <><button onClick={() => decide("coin")}>金币 +10<small>容易产生贪婪策略</small></button><button className="recommended" onClick={() => decide("balanced")}>存活＋探索<small>推荐 · 平衡收益与风险</small></button></>}
+            </div>
+          </div>}
+          {state === "complete" && <div className="result-banner"><i>✓</i><div><small>EXPERIMENT ARCHIVED</small><b>{active === "data" ? "测试集泛化率 91%" : active === "neural" ? "有效神经元 78%" : choice.reward === "coin" ? "金币 42 · 受伤 9 次" : "探索率 86% · 存活率 94%"}</b></div><button onClick={() => { const keys = Object.keys(labs) as LabKey[]; const next = keys.find((k) => states[k] !== "complete"); if (next) setActive(next); }}>进入下一舱 →</button></div>}
+        </section>
+
+        <aside className="inspector panel">
+          <div className="panel-label"><span>KNOWLEDGE LENS</span><i>?</i></div>
+          <small className="concept-tag">{lab.concept}</small><h2>{active === "data" ? "数据决定边界" : active === "neural" ? "深度来自层级" : "奖励塑造策略"}</h2>
+          <p>{active === "data" ? "分类器不会理解“颜色”这个词，它只会根据训练样本寻找能分开标签的边界。没有出现过的区域，只能猜测。" : active === "neural" ? "浅层识别边缘与颜色，中层组合纹理，深层形成与任务相关的抽象表示。每一层都在压缩信息。" : "强化学习没有标准答案。智能体通过行动获得奖励，再逐渐提高高回报行动出现的概率。"}</p>
+          <div className="formula"><small>{active === "data" ? "DECISION" : active === "neural" ? "LAYER" : "UPDATE"}</small><b>{active === "data" ? "ŷ = argmax p(y|x)" : active === "neural" ? "h = σ(Wx + b)" : "Q ← Q + α[r + γQ′ − Q]"}</b></div>
+          <div className="what-changed"><span>画面在表达什么</span>{active === "data" ? <><p><i className="cyan" />散点是带标签的训练样本</p><p><i className="line" />发光边界是模型的分类规则</p><p><i className="purple" />紫色位于模型没见过的区域</p></> : active === "neural" ? <><p><i className="cyan" />亮度表示神经元激活强度</p><p><i className="line" />流动连线表示权重传递</p><p><i className="purple" />越深的层提取越抽象的特征</p></> : <><p><i className="cyan" />地图亮度是当前策略概率</p><p><i className="line" />轨迹记录智能体访问过的状态</p><p><i className="purple" />奖励改变下一回合的行为分布</p></>}</div>
+          <div className="takeaway"><small>完成本舱后你会知道</small><b>{active === "data" ? "为什么高准确率仍可能在现实中失败" : active === "neural" ? "神经网络为什么需要多层结构" : "奖励函数为什么比命令更重要"}</b></div>
         </aside>
       </section>
 
-      <section className="timeline" aria-label="实验阶段">
-        {stages.slice(1).map((s, n) => { const actual = n + 1; return <div key={s.key} className={actual === index ? "active" : actual < index ? "passed" : ""}><i /><span>{s.label}</span><small>{String(actual).padStart(2, "0")}</small></div>; })}
-      </section>
-
-      <section className="insight-strip">
-        <span>本章概念</span><b>过拟合与泛化</b><p>训练成绩描述的是已经见过的世界；泛化能力决定模型如何面对尚未出现的世界。</p><div><span>DATA</span><i>→</i><span>MODEL</span><i>→</i><span>UNKNOWN</span></div>
-      </section>
-      <footer><span>ALGO ABYSS / CHAPTER 01</span><span>知识不是说明，它是世界的物理规则。</span><span>AUTONOMOUS BUILD 0.2</span></footer>
+      <section className="field-notes"><span>探索档案</span><div><b>{states.data === "complete" ? "✓" : "01"}</b><p>数据分布与泛化</p></div><div><b>{states.neural === "complete" ? "✓" : "02"}</b><p>层级特征与激活</p></div><div><b>{states.reward === "complete" ? "✓" : "03"}</b><p>奖励函数与策略</p></div><em>{completed === 3 ? "探索完成：你已经连接了数据、模型与行为。" : "每个实验只需一次观察和一次决策。"}</em></section>
+      <footer><span>ALGO ABYSS / EXPLORATION BUILD</span><span>数据塑造模型，奖励塑造行为。</span><span>V0.3</span></footer>
     </main>
   );
+}
+
+function DataLab({ state, progress, selected, inspect, choice }: { state: LabState; progress: number; selected: string | null; inspect: (v: string) => void; choice: string }) {
+  const boundary = state === "running" || state === "complete" ? (choice === "augment" ? -8 + progress * 24 : -8 + progress * 12) : -8;
+  return <div className="data-lab visual-lab"><div className="plot-grid"><span className="axis y">亮度 ↑</span><span className="axis x">色相 →</span><div className="decision-zone red-zone" /><div className="decision-zone blue-zone" /><div className="decision-line" style={{ transform: `rotate(${boundary}deg)` }} />{samplePoints.map((p, i) => <button key={i} aria-label={`${p.type}样本`} onClick={() => p.type === "purple" && inspect("purple")} className={`sample ${p.type} ${selected === "purple" && p.type === "purple" ? "selected" : ""} ${state === "running" && choice === "augment" && i % 3 === 0 ? "augmented" : ""}`} style={{ left: `${p.x}%`, top: `${p.y}%`, animationDelay: `${i * -0.07}s` }} />)}{(state === "running" || state === "complete") && choice === "augment" && Array.from({ length: 18 }, (_, i) => <i key={i} className="ghost-sample" style={{ left: `${27 + (i * 13) % 47}%`, top: `${20 + (i * 23) % 58}%`, opacity: state === "complete" ? .8 : Math.min(.8, progress * 1.4) }} />)}<div className="model-eye"><i /><span>{state === "inspect" ? "寻找异常点" : state === "choose" ? "分布外 / OOD" : state === "running" ? "重绘边界" : "泛化通过"}</span></div></div><div className="visual-stats"><span>TRAIN ACC <b>{state === "complete" ? "96" : "98"}%</b></span><span>TEST ACC <b>{state === "running" ? Math.round(31 + progress * 60) : state === "complete" ? "91" : "31"}%</b></span><span>OOD COVERAGE <b>{state === "running" ? Math.round(8 + progress * 80) : state === "complete" ? "88" : "08"}%</b></span></div></div>;
+}
+
+function NeuralLab({ state, progress, inspect, choice }: { state: LabState; progress: number; inspect: (v: string) => void; choice: string }) {
+  const layers = [4, 6, 7, 4, 2];
+  return <div className="neural-lab visual-lab"><div className="network"><div className="network-bg" />{layers.map((count, li) => <div className="layer" key={li}><small>{["输入", "边缘", "纹理", "形状", "类别"][li]}</small>{Array.from({ length: count }, (_, n) => <button key={n} aria-label={`第${li + 1}层神经元`} onClick={() => li > 0 && li < 4 && inspect(`layer-${li}`)} className={`${state === "running" ? "firing" : ""} ${state === "complete" ? "stable" : ""}`} style={{ "--power": state === "running" ? Math.max(.12, Math.sin(progress * 18 - li * 1.8 - n) * .5 + .5) : li === 0 ? .35 : .12, animationDelay: `${li * .16 + n * .05}s` } as React.CSSProperties}><i /></button>)}</div>)}</div><div className="feature-reel"><span>FEATURE MAP</span>{["▥", "╱", "▒", "◉", "S"].map((v, i) => <i key={i} className={state === "running" && progress > i * .15 ? "active" : state === "complete" ? "active" : ""}>{v}</i>)}<b>{state === "inspect" ? "点击隐藏层" : state === "choose" ? "选择信号门" : choice === "relu" ? "稀疏特征通路" : "平滑特征通路"}</b></div><div className="visual-stats"><span>ACTIVE UNITS <b>{state === "running" ? Math.round(22 + progress * 56) : state === "complete" ? "78" : "22"}%</b></span><span>GRADIENT <b>{state === "running" ? (0.82 - progress * .38).toFixed(2) : state === "complete" ? ".44" : ".82"}</b></span><span>DEPTH <b>5 LAYERS</b></span></div></div>;
+}
+
+function RewardLab({ state, progress, inspect, choice }: { state: LabState; progress: number; inspect: (v: string) => void; choice: string }) {
+  const cells = Array.from({ length: 96 }, (_, i) => ({ x: i % 12, y: Math.floor(i / 12), value: ((i * 47) % 100) / 100 }));
+  const ax = state === "running" || state === "complete" ? choice === "coin" ? Math.min(9, Math.floor(progress * 14)) : Math.min(10, Math.floor(progress * 11)) : 1;
+  const ay = state === "running" || state === "complete" ? choice === "coin" ? Math.min(6, Math.floor(progress * 9)) : Math.min(5, Math.floor(progress * 7)) : 6;
+  return <div className="reward-lab visual-lab"><button className="arena" onClick={() => inspect("policy")} aria-label="观察强化学习策略竞技场"><div className="arena-grid">{cells.map((c, i) => <i key={i} className={i === 34 || i === 58 ? "danger" : i === 21 || i === 82 ? "coin" : ""} style={{ opacity: state === "running" || state === "complete" ? .2 + c.value * progress * .55 : .24 }} />)}</div><div className="agent" style={{ left: `${5 + ax * 8.25}%`, top: `${6 + ay * 11.5}%` }}><i /><span>AGENT</span></div><div className="coin-token one">◆</div><div className="coin-token two">◆</div><div className="trap one">×</div><div className="trap two">×</div><div className={`policy-trail ${state === "running" ? "visible" : ""}`} /></button><div className="reward-equation"><span>总奖励</span><b>{choice === "coin" ? "+10 金币 −1 受伤" : choice === "balanced" ? "+4 探索 +6 存活 −8 受伤" : "尚未定义"}</b><i style={{ width: `${state === "running" || state === "complete" ? progress * 100 : 0}%` }} /></div><div className="visual-stats"><span>EPISODE <b>{state === "running" ? Math.floor(progress * 100) : state === "complete" ? "100" : "00"}</b></span><span>EXPLORATION <b>{choice === "coin" && state === "complete" ? "34" : state === "complete" ? "86" : Math.round(100 - progress * 14)}%</b></span><span>AVG REWARD <b>{state === "running" ? `+${(progress * (choice === "coin" ? 8.7 : 6.4)).toFixed(1)}` : state === "complete" ? choice === "coin" ? "+8.7" : "+6.4" : "0.0"}</b></span></div></div>;
 }
