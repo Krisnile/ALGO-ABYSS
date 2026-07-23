@@ -9,5 +9,5 @@ export function generateStaticParams() {
 export default async function ChapterPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   if (!chapters.some((chapter) => chapter.slug === slug)) notFound();
-  return <ChapterExperience slug={slug} />;
+  return <ChapterExperience key={slug} slug={slug} />;
 }
