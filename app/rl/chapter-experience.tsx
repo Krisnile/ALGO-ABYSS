@@ -71,10 +71,10 @@ export function ChapterExperience({ slug }: { slug: string }) {
       <nav>{chapters.map((item, itemIndex) => <Link key={item.slug} href={`/rl/${item.slug}`} className={item.slug === chapter.slug ? "active" : ""}><span>{item.slug}</span><div><b>{item.title}</b><small>{item.zone}</small></div>{itemIndex < index && <em>✓</em>}</Link>)}</nav>
     </aside>
     <section className="lesson-main">
-      <header className="lesson-top"><button onClick={() => setCollapsed(!collapsed)}>☰ <span>学习目录</span></button><div>WORLD AUTO-RUNNING <i /></div></header>
+      <header className="lesson-top"><button onClick={() => setCollapsed(!collapsed)}>☰ <span>学习目录</span></button><a href="#minigame">🎮 进入小游戏</a><div>WORLD AUTO-RUNNING <i /></div></header>
       <div className="lesson-stage">
         <SceneFX chapter={chapter.slug} tick={tick} />
-        <div className="lesson-heading"><span>LEVEL {chapter.slug} / {chapter.en}</span><h1>{chapter.title}</h1><p>{chapter.question}</p></div>
+        <div className="lesson-heading"><span>LEVEL {chapter.slug} / {chapter.en}</span><h1>{chapter.title}</h1><p>{chapter.question}</p><a className="play-now" href="#minigame"><b>PLAY</b><span>进入本关小游戏</span><i>↓</i></a></div>
         <World chapter={chapter.slug} tick={tick} intensity={normalized} mode={mode} />
         <div className="watch-card"><small>这一关看什么</small><p>{chapter.watch}</p><i>观察即可 · 画面会自动演化</i></div>
         <div className="noe-companion"><div className="pixel-noe"><i/><i/><b/><em/></div><div><small>KIZE / 深渊探测员</small><p>“{dialogue[index][tick%12<6?0:1]}”</p></div></div>
@@ -84,8 +84,8 @@ export function ChapterExperience({ slug }: { slug: string }) {
         <div><small>{stories[index][0]}</small><p>{stories[index][1]}</p></div>
         <div className="mission"><small>本关任务</small><p>{stories[index][2]}</p></div>
       </section>
-      <section className={`lab-panel lab-${chapter.slug}`}>
-        <div className="lab-heading"><div><span>LIVE EXPERIMENT</span><h2>{chapter.zone}控制台</h2><p>完成像素任务，让算法规律在操作中显现。</p></div><div className="lab-actions"><button onClick={()=>setRunning(!running)}>{running?"Ⅱ 暂停":"▶ 继续"}</button>{[1,2,4].map(value=><button key={value} className={speed===value?"active":""} onClick={()=>setSpeed(value)}>×{value}</button>)}<button onClick={()=>setMode(value=>value==="steady"?"bold":"steady")}>{mode==="steady"?"稳":"激"}</button><button onClick={()=>setTick(0)}>↻</button></div></div>
+      <section className={`lab-panel lab-${chapter.slug}`} id="minigame">
+        <div className="lab-heading"><div><span>PLAYABLE MISSION · GAME {chapter.slug}</span><h2>{chapter.zone}像素任务</h2><p>这里就是本关小游戏。完成任务，让算法规律在操作中显现。</p></div><div className="lab-actions"><button onClick={()=>setRunning(!running)}>{running?"Ⅱ 暂停":"▶ 继续"}</button>{[1,2,4].map(value=><button key={value} className={speed===value?"active":""} onClick={()=>setSpeed(value)}>×{value}</button>)}<button onClick={()=>setMode(value=>value==="steady"?"bold":"steady")}>{mode==="steady"?"稳":"激"}</button><button onClick={()=>setTick(0)}>↻</button></div></div>
         <MiniGame chapter={chapter.slug} tick={tick} parameter={parameter} setParameter={setParameter} spec={spec} />
         <div className="game-telemetry"><span>STEP <b>{tick}</b></span><span>STABILITY <b>{stability.toFixed(0)}%</b></span><span>REWARD <b>{reward.toFixed(0)}</b></span><span>MODE <b>{mode==="steady"?"稳健":"激进"}</b></span></div>
         <Instrument chapter={chapter.slug} tick={tick} parameter={parameter} intensity={normalized} />
