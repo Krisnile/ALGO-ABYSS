@@ -17,7 +17,24 @@ const strategyInfo = {
   curious: { name: "保持好奇", eps: .35, decay: 0, desc: "始终保留较高探索率，适合奖励规律会变化的环境。" },
 };
 
+const chapters = [
+  ["01", "智能体与环境", "Agent Loop", "交互循环"],
+  ["02", "回报与折扣", "Return γ", "奖励长河"],
+  ["03", "价值与递推", "Value / Bellman", "价值波纹"],
+  ["04", "探索与利用", "ε-greedy", "矿洞实验"],
+  ["05", "完整经历学习", "Monte Carlo", "轨迹回放"],
+  ["06", "走一步就更新", "TD Learning", "时间差"],
+  ["07", "沿当前策略学习", "SARSA", "安全轨迹"],
+  ["08", "学习最优动作", "Q-Learning", "价值迷宫"],
+  ["09", "从表格到函数", "Approximation", "参数地形"],
+  ["10", "神经网络估值", "DQN", "记忆工厂"],
+  ["11", "直接学习策略", "Policy Gradient", "概率乐团"],
+  ["12", "行动与评价协作", "Actor-Critic", "双核心"],
+  ["13", "限制更新幅度", "PPO", "裁剪闸门"],
+] as const;
+
 export default function Home() {
+  const [visualTick, setVisualTick] = useState(0);
   const [running, setRunning] = useState(true);
   const [speed, setSpeed] = useState(1);
   const [strategy, setStrategy] = useState<Strategy>("epsilon");
@@ -36,6 +53,10 @@ export default function Home() {
   useEffect(() => { valuesRef.current = values; }, [values]);
   useEffect(() => { countsRef.current = counts; }, [counts]);
   useEffect(() => { episodeRef.current = episode; }, [episode]);
+  useEffect(() => {
+    const timer = window.setInterval(() => setVisualTick((tick) => tick + 1), 720);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const epsilon = strategy === "epsilon" ? Math.max(.06, strategyInfo.epsilon.eps - episode * strategyInfo.epsilon.decay) : strategyInfo[strategy].eps;
 
@@ -69,17 +90,24 @@ export default function Home() {
 
   return (
     <main className="fortress">
-      <header className="topbar"><div className="brand"><span>Ω</span><b>算法矿境</b><small>ALGO ABYSS / RL-01</small></div><nav><a href="#experiment">实时实验</a><a href="#why">概念拆解</a><a href="#compare">策略对比</a></nav><div className="live"><i className={running ? "on" : ""} /> {running ? "SIMULATION LIVE" : "PAUSED"}</div></header>
+      <header className="topbar"><div className="brand"><span>Ω</span><b>算法深渊</b><small>ALGO ABYSS / RL PATH</small></div><nav><a href="#catalog">篇章目录</a><a href="#chapter-04">实时实验</a><a href="#chapter-13">抵达 PPO</a></nav><div className="live"><i className="on" /> WORLD LIVE</div></header>
 
       <section className="hero">
-        <div className="kicker">强化学习 · 第一关 / REINFORCEMENT LEARNING</div>
+        <div className="kicker">强化学习 · 第四关 / REINFORCEMENT LEARNING</div>
         <h1>探索 <em>VS</em> 利用</h1>
         <div className="hero-icons"><span><i>?</i></span><b>ε</b><span><i>★</i></span></div>
         <div className="observe-task"><small>你现在应该看什么</small><b><i>{task.n}</i>{task.title}</b><p>{task.body}</p></div>
       </section>
 
-      <section className="experiment" id="experiment">
-        <div className="section-heading"><div><span>01 / 自动实验</span><h2>矿洞选择现场</h2><p>每一步都会自动发生。虚线代表探索，实线代表利用。</p></div><div className="controls"><button onClick={() => setRunning(!running)}>{running ? "Ⅱ 暂停" : "▶ 继续"}</button><div className="speed">{[1, 2, 4].map((s) => <button key={s} className={speed === s ? "active" : ""} onClick={() => setSpeed(s)}>×{s}</button>)}</div><button onClick={() => reset()}>↻ 重置</button></div></div>
+      <section className="course-map" id="catalog">
+        <div className="course-title"><span>强化学习路线</span><b>13 关 · 从交互循环到 PPO</b><i>向下探索 ↓</i></div>
+        <div className="course-track">{chapters.map((c, i) => <a key={c[0]} href={`#chapter-${c[0]}`} className={i === 3 ? "current" : ""}><span>{c[0]}</span><div><small>{c[2]}</small><b>{c[1]}</b></div><em>{c[3]}</em></a>)}</div>
+      </section>
+
+      <FoundationPath tick={visualTick} />
+
+      <section className="experiment" id="chapter-04">
+        <div className="section-heading"><div><span>04 / ε-GREEDY · 晶洞岔路</span><h2>探索与利用</h2><p>每一步都会自动发生。虚线代表探索，实线代表利用。</p></div><div className="controls"><button onClick={() => setRunning(!running)}>{running ? "Ⅱ 暂停" : "▶ 继续"}</button><div className="speed">{[1, 2, 4].map((s) => <button key={s} className={speed === s ? "active" : ""} onClick={() => setSpeed(s)}>×{s}</button>)}</div><button onClick={() => reset()}>↻ 重置</button></div></div>
 
         <div className="sim-grid">
           <div className="arena-card card">
@@ -130,7 +158,8 @@ export default function Home() {
         <div className="section-heading"><div><span>04 / 改变策略</span><h2>同一个世界，三种性格</h2><p>选择策略后实验会自动重置。观察它们是否都能找到真正最好的矿洞。</p></div></div>
         <div className="strategy-cards">{(Object.keys(strategyInfo) as Strategy[]).map((key) => <button key={key} className={strategy === key ? "active" : ""} onClick={() => reset(key)}><span>{key === "greedy" ? "00" : key === "epsilon" ? "ε↓" : "ε="}</span><div><small>{key.toUpperCase()}</small><b>{strategyInfo[key].name}</b><p>{strategyInfo[key].desc}</p></div><i>{strategy === key ? "运行中" : "运行实验 →"}</i></button>)}</div>
       </section>
-      <footer><span>ALGO ABYSS / RL-01</span><b>这一关只讲：探索与利用</b><span>LOCAL EXPERIMENT BUILD</span></footer>
+      <LearningPath tick={visualTick} />
+      <footer><span>ALGO ABYSS / RL</span><b>13 个世界 · 一条强化学习主线</b><span>LOCAL EXPERIMENT BUILD</span></footer>
     </main>
   );
 }
@@ -142,3 +171,42 @@ function LineChart({ history, colors }: { history: number[][]; colors: string[] 
 function RewardChart({ values }: { values: number[] }) {
   return <div className="reward-plot"><div className="grid-lines" />{values.map((v, i) => <i key={i} className={v ? "hit" : "miss"} style={{ left: `${i / Math.max(1, values.length) * 100}%`, height: `${v ? 24 + v * 29 : 5}%` }} />)}</div>;
 }
+
+function LearningPath({ tick }: { tick: number }) {
+  return <section className="learning-path">
+    <Chapter no="05" type="mc" title="完整经历学习" term="Monte Carlo" question="等冒险结束，再回头评价每一步。" insight="蒙特卡洛方法用完整回报更新价值，不需要环境模型。"><MonteCarloVisual tick={tick} /></Chapter>
+    <Chapter no="06" type="td" title="走一步就更新" term="TD Learning" question="还没走到终点，能不能提前学习？" insight="TD 用下一状态的估值作为临时答案，边走边修正。"><TDVisual tick={tick} /></Chapter>
+    <Chapter no="07" type="sarsa" title="沿当前策略学习" term="SARSA" question="如果下一步真的还会探索呢？" insight="SARSA 使用实际选择的下一动作，学习更贴近当前策略的价值。"><SarsaVisual tick={tick} /></Chapter>
+    <Chapter no="08" type="q" title="学习最优动作" term="Q-Learning" question="当前乱走，也能学习最优路线吗？" insight="Q-Learning 更新时假设下一步选择最大 Q，是离策略学习。"><QVisual tick={tick} /></Chapter>
+    <Chapter no="09" type="approx" title="从表格到函数" term="Function Approximation" question="状态多到表格装不下怎么办？" insight="用参数函数概括相似状态，把经验推广到没见过的位置。"><ApproxVisual tick={tick} /></Chapter>
+    <Chapter no="10" type="dqn" title="神经网络估值" term="DQN" question="让神经网络预测每个动作的 Q 值。" insight="经验回放打乱相关样本，目标网络减慢目标变化，让训练稳定。"><DQNVisual tick={tick} /></Chapter>
+    <Chapter no="11" type="pg" title="直接学习策略" term="Policy Gradient" question="不估值每个动作，直接调整行动概率。" insight="高回报动作的概率被提高，低回报动作的概率被压低。"><PolicyVisual tick={tick} /></Chapter>
+    <Chapter no="12" type="ac" title="行动与评价协作" term="Actor-Critic" question="一个负责行动，一个负责指出好坏。" insight="Actor 更新策略，Critic 估计价值并提供更低方差的学习信号。"><ActorCriticVisual tick={tick} /></Chapter>
+    <Chapter no="13" type="ppo" title="限制更新幅度" term="PPO" question="学得太猛，为什么反而会崩？" insight="PPO 裁剪新旧策略比率，限制单次更新，换取稳定进步。"><PPOVisual tick={tick} /></Chapter>
+  </section>;
+}
+
+function FoundationPath({ tick }: { tick: number }) {
+  return <section className="learning-path foundations">
+    <Chapter no="01" type="mdp" title="智能体与环境" term="Agent Loop / MDP" question="强化学习从哪里开始？" insight="智能体观察状态、采取动作、得到奖励，环境再进入下一状态。"><MDPVisual tick={tick} /></Chapter>
+    <Chapter no="02" type="return" title="回报与折扣" term="Return / γ" question="很久以后的奖励还值多少？" insight="折扣因子 γ 决定智能体更看重眼前，还是愿意为长期结果等待。"><ReturnVisual tick={tick} /></Chapter>
+    <Chapter no="03" type="bellman" title="价值与递推" term="Value / Bellman" question="怎样把未来压缩成一个数？" insight="状态价值等于即时奖励，加上折扣后的下一状态价值。"><BellmanVisual tick={tick} /></Chapter>
+  </section>;
+}
+
+function Chapter({ no, type, title, term, question, insight, children }: { no: string; type: string; title: string; term: string; question: string; insight: string; children: React.ReactNode }) {
+  return <article className={`chapter chapter-${type}`} id={`chapter-${no}`}><div className="chapter-copy"><span>{no} / {term}</span><h2>{title}</h2><b>{question}</b><p>{insight}</p><a href="#catalog">返回目录 ↑</a></div><div className="chapter-visual">{children}</div></article>;
+}
+
+function MDPVisual({ tick }: { tick: number }) { const active = tick % 4; return <div className="mdp-world"><div className="mdp-agent" style={{ left: `${[12,38,65,82][active]}%`, top: `${[62,28,66,35][active]}%` }}>A</div>{["S₀","S₁","S₂","S₃"].map((s,i)=><i key={s} className={i===active?"on":""} style={{left:`${[12,38,65,82][i]}%`,top:`${[62,28,66,35][i]}%`}}>{s}</i>)}<div className="mdp-path"/><span className="reward-token">R +{active+1}</span></div> }
+function BellmanVisual({ tick }: { tick: number }) { return <div className="bellman-world"><div className="value-core">V(s)<i/><i/><i/></div>{[0,1,2,3].map(i=><span key={i} style={{animationDelay:`${i*.4}s`}}>γ<sup>{i}</sup><b>+{Math.max(1,4-i)}</b></span>)}<em>现在</em><em>未来</em></div> }
+function ReturnVisual({ tick }: { tick: number }) { return <div className="return-world"><div className="reward-river">{[8,5,3,2,1].map((r,i)=><i key={i} style={{opacity:Math.max(.18,1-i*.17),transform:`scale(${1-i*.11})`}}><b>+{r}</b><span>γ<sup>{i}</sup></span></i>)}</div><div className="gamma-dial" style={{transform:`rotate(${(tick%30)-15}deg)`}}>γ</div><strong>Gₜ = Rₜ₊₁ + γRₜ₊₂ + …</strong></div> }
+function MonteCarloVisual({ tick }: { tick: number }) { const n=tick%6; return <div className="mc-world"><div className="episode-film">{[0,1,2,3,4,5].map(i=><i key={i} className={i<=n?"seen":""}><b>{i===5?"★":"S"+i}</b><span>{i===5?"+10":"0"}</span></i>)}</div><div className="return-wave" style={{width:`${(n+1)*16}%`}}/><strong>Gₜ ← 完整回报</strong></div> }
+function TDVisual({ tick }: { tick: number }) { const n=tick%5; return <div className="td-world">{[0,1,2,3,4].map(i=><i key={i} className={i===n?"active":i<n?"done":""}>S{i}</i>)}<div className="td-spark" style={{left:`${10+n*20}%`}}>δ</div><strong>R + γV(S′) − V(S)</strong></div> }
+function QVisual({ tick }: { tick: number }) { return <div className="q-world"><div className="heatmap">{Array.from({length:48},(_,i)=><i key={i} style={{opacity:.12+(((i*37+tick*7)%100)/100)*.75}} className={i===35?"goal":i===19?"trap":""}/>)}</div><div className="q-agent" style={{left:`${8+(tick%7)*12}%`,top:`${70-(tick%3)*22}%`}}>Q</div><b>max Q(s′,a′)</b></div> }
+function SarsaVisual({ tick }: { tick: number }) { return <div className="sarsa-world"><div className="cliff"/><div className="track safe"><i style={{left:`${tick%100}%`}}/></div><div className="track risky"><i style={{left:`${(tick*1.4)%100}%`}}/></div><span>SARSA · 安全</span><span>Q · 最短</span></div> }
+function ApproxVisual({ tick }: { tick: number }) { return <div className="approx-world"><div className="surface">{Array.from({length:30},(_,i)=><i key={i} style={{height:`${18+((i*29+tick)%65)}%`}}/>)}</div><div className="fit-line"/><span>θ₀</span><span>θ₁</span><b>Q(s,a; θ)</b></div> }
+function DQNVisual({ tick }: { tick: number }) { return <div className="dqn-world"><div className="replay">{Array.from({length:8},(_,i)=><i key={i} className={(i+tick)%3===0?"sampled":""}>e{i}</i>)}</div><div className="network-stack">{[3,5,4,3].map((n,l)=><div key={l}>{Array.from({length:n},(_,i)=><i key={i} style={{animationDelay:`${(l+i)*.1}s`}}/>)}</div>)}</div><div className="target-net">TARGET <span>慢速同步</span></div></div> }
+function PolicyVisual({ tick }: { tick: number }) { const p=.2+(tick%70)/100; return <div className="policy-world">{[["←",1-p],["↑",p],["→",.3]].map(([a,v],i)=><div key={i}><i style={{height:`${Number(v)*80}%`}}/><b>{a}</b><span>{Math.min(99,Math.round(Number(v)*100))}%</span></div>)}<div className="policy-pulse">∇J(θ)</div></div> }
+function ActorCriticVisual({ tick }: { tick: number }) { return <div className="ac-world"><div className="ac-core actor"><i/>ACTOR<small>π(a|s)</small></div><div className="advantage" style={{transform:`scaleX(${.6+(tick%30)/50})`}}>A(s,a)</div><div className="ac-core critic"><i/>CRITIC<small>V(s)</small></div><span>行动 → 评价 → 修正</span></div> }
+function PPOVisual({ tick }: { tick: number }) { const x=15+(tick%70); return <div className="ppo-world"><div className="clip-zone"><i/><i/></div><div className="policy-ball" style={{left:`${x}%`}}>π</div><div className="old-policy">π old</div><div className="clip-meter"><span>0.8</span><b style={{width:`${Math.min(100,x)}%`}}/><span>1.2</span></div><strong>CLIP(rₜ, 1−ε, 1+ε)</strong></div> }
