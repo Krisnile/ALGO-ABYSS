@@ -9,6 +9,7 @@
     "dev": "next dev",
     "build": "next build",
     "build:static": "DEPLOY_TARGET=static next build",
+    "build:github": "DEPLOY_TARGET=static NEXT_PUBLIC_BASE_PATH=/ALGO-ABYSS next build",
     "start": "next start",
     "lint": "eslint . --ignore-pattern .next"
   },
