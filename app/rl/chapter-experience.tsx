@@ -5,17 +5,17 @@ import { useEffect, useState } from "react";
 import { chapters } from "./chapters";
 
 const stories = [
-  ["苏醒于状态回廊","探测员「诺伊」在失忆中醒来。深渊没有地图，只有环境对每次行动作出的回应。","建立第一条感知—行动—奖励回路，为远征核心供能。"],
+  ["苏醒于状态回廊","探测员「Kize」在失忆中醒来。深渊没有地图，只有环境对每次行动作出的回应。","建立第一条感知—行动—奖励回路，为远征核心供能。"],
   ["星光有远近","回廊尽头漂浮着一条奖励星河。近处的光容易取得，远处的光却可能开启真正的出口。","校准折扣镜片，决定远方奖励在今天还剩多少价值。"],
-  ["未来的回声","星河的光汇入价值波场。诺伊发现每个位置都保存着未来可能性的回声。","让未来价值反向传播，为未知区域绘制第一张价值图。"],
+  ["未来的回声","星河的光汇入价值波场。Kize 发现每个位置都保存着未来可能性的回声。","让未来价值反向传播，为未知区域绘制第一张价值图。"],
   ["晶洞的诱惑","价值图指向三条晶洞岔路，但最亮的路可能只是一次偶然好运。远征第一次面对选择。","在好奇与确信之间找到节奏，识别真正稳定的奖励源。"],
   ["结局才能回答","岔路后的记忆剧场会保存整段旅程。只有抵达终点，沿途选择的意义才会显现。","完成整条轨迹，让最终回报倒流并评价每个曾经的状态。"],
-  ["时间出现裂缝","等待结局太慢，深渊开始坍缩。诺伊必须在每一步之后立刻从下一刻借来答案。","捕捉时间差误差，在旅程尚未结束时持续更新价值。"],
-  ["悬崖边的策略","捷径贴着无底悬崖延伸。理论上的最短路线，遇到仍会探索的诺伊却异常危险。","让学习考虑自己真正会采取的下一步，找到可执行的安全航线。"],
-  ["离开自己的脚印","安全航线之外是一座价值迷宫。诺伊要从混乱行动中学习一条并未亲自完整走过的最优路线。","用下一状态的最大价值更新当前判断，让知识超越当前策略。"],
-  ["地图装不下世界","迷宫向无数维度展开，Q 表格在诺伊手中碎裂。相似状态必须共享经验。","用少量参数塑造连续价值地形，把一次经验推广到邻近区域。"],
+  ["时间出现裂缝","等待结局太慢，深渊开始坍缩。Kize 必须在每一步之后立刻从下一刻借来答案。","捕捉时间差误差，在旅程尚未结束时持续更新价值。"],
+  ["悬崖边的策略","捷径贴着无底悬崖延伸。理论上的最短路线，遇到仍会探索的 Kize 却异常危险。","让学习考虑自己真正会采取的下一步，找到可执行的安全航线。"],
+  ["离开自己的脚印","安全航线之外是一座价值迷宫。Kize 要从混乱行动中学习一条并未亲自完整走过的最优路线。","用下一状态的最大价值更新当前判断，让知识超越当前策略。"],
+  ["地图装不下世界","迷宫向无数维度展开，Q 表格在 Kize 手中碎裂。相似状态必须共享经验。","用少量参数塑造连续价值地形，把一次经验推广到邻近区域。"],
   ["记忆工厂启动","参数地形接入深层网络后开始震荡。连续经验彼此纠缠，目标也不断移动。","启动经验回放与目标网络，让神经估值在噪声中稳定下来。"],
-  ["策略风暴","诺伊不再绕道估计每个动作，而是直面行动概率本身。每次回报都会改变风向。","顺着回报加权的梯度，直接提高有益行动出现的概率。"],
+  ["策略风暴","Kize 不再绕道估计每个动作，而是直面行动概率本身。每次回报都会改变风向。","顺着回报加权的梯度，直接提高有益行动出现的概率。"],
   ["双核议会","单独行动的策略风暴方差太大。深渊唤醒了评价核心，与行动核心共同决策。","让 Actor 提案、Critic 评价，用优势信号协调两种学习。"],
   ["深渊闸门","最终区域的策略能量极不稳定。一次过猛更新足以抹去此前全部经验。","穿过 PPO 裁剪闸门，用受限制的小步更新完成强化学习远征。"],
 ] as const;
@@ -24,6 +24,22 @@ const controls = [
   ["环境噪声",0,100,35],["折扣 γ",0,100,88],["传播速度",10,100,58],["探索率 ε",0,100,32],
   ["轨迹长度",3,12,7],["学习率 α",1,100,24],["探索风险",0,100,28],["乐观程度",0,100,70],
   ["特征数量",3,30,12],["回放批量",4,64,32],["策略步长",1,100,22],["评价权重",0,100,62],["裁剪范围",5,40,20],
+] as const;
+
+const dialogue = [
+  ["这里没有地图。每次回应，就是地图的一笔。","我先迈出一步，你替我记录环境的回答。"],
+  ["近处的光很暖，但最远那颗星像在呼唤我。","转动 γ 镜片，看看未来会不会消失。"],
+  ["听见了吗？未来正在对现在说话。","每一圈波纹，都会改写我脚下的位置。"],
+  ["最亮的不一定最好，也许只是它刚好运。","替我保留一点怀疑——那就是 ε。"],
+  ["先别评价这一步，等故事走到结局。","终点出现时，所有记忆都会得到答案。"],
+  ["深渊等不了完整结局，我们必须边走边学。","δ 闪烁时，就是预期与现实相撞的瞬间。"],
+  ["我知道捷径在哪，但我也知道自己还会犯错。","能活着抵达的路线，才是真正可执行的策略。"],
+  ["即使此刻走偏，我仍能学习那条最好的路。","把目光越过我的脚印，看下一格最大的 Q。"],
+  ["表格碎了……但相似的地方应该共享记忆。","调整 θ，让一条经验改变整片地形。"],
+  ["记忆太连续，网络开始把巧合当成规律。","打乱它们，再让旧目标慢一点追上来。"],
+  ["这一次，我不再选择道路——我要改变风。","高回报会让那股行动之风更强。"],
+  ["我负责行动，另一个我负责质疑。","当双核意见一致，策略才值得前进。"],
+  ["最后的闸门不允许鲁莽。","小步并不慢；不摔回深渊，才是真正的快。"],
 ] as const;
 
 export function ChapterExperience({ slug }: { slug: string }) {
@@ -58,9 +74,11 @@ export function ChapterExperience({ slug }: { slug: string }) {
     <section className="lesson-main">
       <header className="lesson-top"><button onClick={() => setCollapsed(!collapsed)}>☰ <span>学习目录</span></button><div>WORLD AUTO-RUNNING <i /></div></header>
       <div className="lesson-stage">
+        <SceneFX chapter={chapter.slug} tick={tick} />
         <div className="lesson-heading"><span>LEVEL {chapter.slug} / {chapter.en}</span><h1>{chapter.title}</h1><p>{chapter.question}</p></div>
         <World chapter={chapter.slug} tick={tick} intensity={normalized} mode={mode} />
         <div className="watch-card"><small>这一关看什么</small><p>{chapter.watch}</p><i>观察即可 · 画面会自动演化</i></div>
+        <div className="noe-companion"><div className="pixel-noe"><i/><i/><b/><em/></div><div><small>KIZE / 深渊探测员</small><p>“{dialogue[index][tick%12<6?0:1]}”</p></div></div>
       </div>
       <section className="story-brief">
         <div className="story-id"><span>远征记录</span><b>{chapter.slug}</b></div>
@@ -87,6 +105,15 @@ export function ChapterExperience({ slug }: { slug: string }) {
       </footer>
     </section>
   </main>;
+}
+
+function SceneFX({ chapter, tick }: { chapter:string; tick:number }) {
+  if (chapter==="05") return <div className="scene-fx film-reel"><i/><i/><span>MEMORY / {String(tick%100).padStart(2,"0")}</span></div>;
+  if (chapter==="07") return <div className="scene-fx cliff-run">{Array.from({length:8},(_,i)=><i key={i} style={{left:`${(i*19-tick*3)%120}%`}}/>)}<b>WARNING · EDGE</b></div>;
+  if (chapter==="10") return <div className="scene-fx data-rain">{Array.from({length:14},(_,i)=><i key={i} style={{left:`${i*7.3}%`,animationDelay:`${-i*.17}s`}}>01<br/>10<br/>e{i}</i>)}</div>;
+  if (chapter==="11") return <div className="scene-fx anime-storm">{Array.from({length:9},(_,i)=><i key={i} style={{"--ray":i} as React.CSSProperties}/>) }<b>∇</b></div>;
+  if (chapter==="13") return <div className="scene-fx gate-scene"><i/><i/><b>FINAL GATE</b></div>;
+  return <div className="scene-fx abyss-dust">{Array.from({length:18},(_,i)=><i key={i} style={{left:`${(i*37)%96}%`,top:`${(i*29)%88}%`,animationDelay:`${-i*.13}s`}}/>)}</div>;
 }
 
 function Instrument({ chapter, tick, parameter, intensity }: { chapter:string; tick:number; parameter:number; intensity:number }) {
